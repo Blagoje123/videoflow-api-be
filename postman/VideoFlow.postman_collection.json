@@ -1,0 +1,112 @@
+{
+  "info": {
+    "name": "VideoFlow API",
+    "description": "REST API za završni projekat. Login vraća JWT access i refresh token. USER čita, ADMIN radi CRUD.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8080"},
+    {"key": "accessToken", "value": ""},
+    {"key": "refreshToken", "value": ""},
+    {"key": "projectId", "value": "1"}
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"admin@videoflow.rs\",\n  \"password\": \"admin123\"\n}"},
+            "url": "{{baseUrl}}/api/auth/login",
+            "description": "Prijava administratora. Test skripta čuva oba tokena."
+          },
+          "event": [{"listen": "test", "script": {"exec": ["const d = pm.response.json();", "pm.collectionVariables.set('accessToken', d.accessToken);", "pm.collectionVariables.set('refreshToken', d.refreshToken);"]}}],
+          "response": [{
+            "name": "200 - admin tokeni", "status": "OK", "code": 200,
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": "{\n  \"accessToken\": \"ACCESS_TOKEN_EXAMPLE\",\n  \"refreshToken\": \"REFRESH_TOKEN_EXAMPLE\",\n  \"name\": \"Strahinja Blagojevic\",\n  \"role\": \"ROLE_ADMIN\"\n}",
+            "originalRequest": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"email\": \"admin@videoflow.rs\",\n  \"password\": \"admin123\"\n}"}, "url": "{{baseUrl}}/api/auth/login"}
+          }]
+        },
+        {
+          "name": "Login user",
+          "request": {
+            "method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"email\": \"editor@videoflow.rs\",\n  \"password\": \"user123\"\n}"},
+            "url": "{{baseUrl}}/api/auth/login", "description": "Prijava korisnika koji ima samo pravo čitanja."
+          },
+          "event": [{"listen": "test", "script": {"exec": ["const d = pm.response.json();", "pm.collectionVariables.set('accessToken', d.accessToken);", "pm.collectionVariables.set('refreshToken', d.refreshToken);"]}}]
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"},
+            "url": "{{baseUrl}}/api/auth/refresh", "description": "Vraća novi access i refresh token bez ponovne prijave."
+          },
+          "event": [{"listen": "test", "script": {"exec": ["const d = pm.response.json();", "pm.collectionVariables.set('accessToken', d.accessToken);", "pm.collectionVariables.set('refreshToken', d.refreshToken);"]}}],
+          "response": [{
+            "name": "200 - osveženi tokeni", "status": "OK", "code": 200,
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": "{\n  \"accessToken\": \"NEW_ACCESS_TOKEN_EXAMPLE\",\n  \"refreshToken\": \"NEW_REFRESH_TOKEN_EXAMPLE\",\n  \"name\": \"Strahinja Blagojevic\",\n  \"role\": \"ROLE_ADMIN\"\n}",
+            "originalRequest": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"}, "url": "{{baseUrl}}/api/auth/refresh"}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{accessToken}}", "type": "string"}]},
+      "item": [
+        {
+          "name": "List projects",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/projects", "description": "READ: lista projekata; dozvoljeno za USER i ADMIN."},
+          "response": [{
+            "name": "200 - lista", "status": "OK", "code": 200,
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": "[\n  {\n    \"id\": 1,\n    \"name\": \"AI reklama\",\n    \"client\": \"Demo klijent\",\n    \"status\": \"U TOKU\",\n    \"deadline\": \"2026-10-01\",\n    \"owner\": \"Strahinja Blagojevic\",\n    \"members\": [\"Strahinja Blagojevic\", \"Video editor\"],\n    \"taskCount\": 1\n  }\n]",
+            "originalRequest": {"method": "GET", "url": "{{baseUrl}}/api/projects"}
+          }]
+        },
+        {
+          "name": "Get project",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/projects/{{projectId}}", "description": "READ: jedan projekat po ID-u."}
+        },
+        {
+          "name": "Create project",
+          "request": {
+            "method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Muzički spot\",\n  \"client\": \"Demo bend\",\n  \"status\": \"PLANIRAN\",\n  \"deadline\": \"2026-11-10\"\n}"},
+            "url": "{{baseUrl}}/api/projects", "description": "CREATE: samo ADMIN. Vlasnik se uzima iz JWT-a."
+          },
+          "event": [{"listen": "test", "script": {"exec": ["pm.collectionVariables.set('projectId', pm.response.json().id);"]}}],
+          "response": [{
+            "name": "201 - kreiran", "status": "Created", "code": 201,
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": "{\n  \"id\": 2,\n  \"name\": \"Muzički spot\",\n  \"client\": \"Demo bend\",\n  \"status\": \"PLANIRAN\",\n  \"deadline\": \"2026-11-10\",\n  \"owner\": \"Strahinja Blagojevic\",\n  \"members\": [\"Strahinja Blagojevic\"],\n  \"taskCount\": 0\n}",
+            "originalRequest": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"Muzički spot\",\n  \"client\": \"Demo bend\",\n  \"status\": \"PLANIRAN\",\n  \"deadline\": \"2026-11-10\"\n}"}, "url": "{{baseUrl}}/api/projects"}
+          }]
+        },
+        {
+          "name": "Update project",
+          "request": {
+            "method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Muzički spot\",\n  \"client\": \"Demo bend\",\n  \"status\": \"U TOKU\",\n  \"deadline\": \"2026-11-15\"\n}"},
+            "url": "{{baseUrl}}/api/projects/{{projectId}}", "description": "UPDATE: samo ADMIN."
+          }
+        },
+        {
+          "name": "Add project member",
+          "request": {"method": "POST", "url": "{{baseUrl}}/api/projects/{{projectId}}/members/2", "description": "Dodaje korisnika projektu i demonstrira ManyToMany vezu."}
+        },
+        {
+          "name": "Delete project",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/api/projects/{{projectId}}", "description": "DELETE: samo ADMIN; vraća 204."}
+        }
+      ]
+    }
+  ]
+}
